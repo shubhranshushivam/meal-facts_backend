@@ -1,22 +1,35 @@
-from fileinput import filename
-from urllib import response
-from flask import Flask, jsonify, request, session
+from flask import Flask, request
 import requests
 import math
 from flask_cors import CORS
 import sys
 import json
+from flask_mysqldb import MySQL
 
 temp = {}
 # Initializing flask app
 app = Flask(__name__)
 CORS(app)
 
+app.config['MYSQL_HOST'] = 'localhost'
+app.config['MYSQL_USER'] = 'root'
+app.config['MYSQL_PASSWORD'] = ''
+app.config['MYSQL_DB'] = 'meal_fact'
+mysql = MySQL(app)
+
+
 
 # Route for seeing a data
 
 class DataStore():
     a = None
+
+
+class UserData():
+    userName= None
+    userEmail= None
+    userImage = None
+    loginDate = None
 
 
 classData = DataStore()
@@ -30,7 +43,7 @@ def test1():
 
     img = 'C:\\Users\\shubh\\Desktop\\Gitam_notes_sem7\\CSD-Coding\\project\\frontend\\meal\\public\\images\\'+x
 
-    api_user_token = '_API_token_'
+    api_user_token = 'API_TOKEN'
     headers = {'Authorization': 'Bearer ' + api_user_token}
 
     # Single/Several Dishes Detection
@@ -42,50 +55,48 @@ def test1():
 
     # Nutritional information
     url = 'https://api.logmeal.es/v2/recipe/nutritionalInfo'
-    resp = requests.post(url, json={'imageId': resp.json()[
-                         'imageId']}, headers=headers)
+    resp = requests.post(url, json={'imageId': resp.json()['imageId']}, headers=headers)
 
     result = resp.json()
     foodName = "".join(result['foodName'][-1]).title()
     calories = (math.ceil(result['nutritional_info']['calories']))
 
+
     # recipe
     url = "https://tasty.p.rapidapi.com/recipes/list"
 
-    query = foodName
+    query=foodName
 
-    querystring = {"from": "0", "size": "1", "q": query}
+    querystring = {"from":"0","size":"1","q":query}
 
     headers = {
-        "X-RapidAPI-Key": "_API_token_",
+        "X-RapidAPI-Key": "API_TOKEN",
         "X-RapidAPI-Host": "tasty.p.rapidapi.com"
     }
 
-    response = requests.request(
-        "GET", url, headers=headers, params=querystring)
+    response = requests.request("GET", url, headers=headers, params=querystring)
 
-    val = ""
+    val=""
     try:
-        xVal = len(response.json()['results'][0]['recipes'][0]['instructions'])
+        xVal= len(response.json()['results'][0]['recipes'][0]['instructions'])
         for i in range(xVal):
-            val += ' ' + \
-                response.json()[
-                    'results'][0]['recipes'][0]['instructions'][i]['display_text']
+            val+=' '+response.json()['results'][0]['recipes'][0]['instructions'][i]['display_text']
 
     except:
-        xVal = len(response.json()['results'][0]['instructions'])
+        xVal= len(response.json()['results'][0]['instructions'])
         for i in range(xVal):
-            val += ' ' + \
-                response.json()[
-                    'results'][0]['instructions'][i]['display_text']
+            val+=' '+response.json()['results'][0]['instructions'][i]['display_text']
+
 
     # Returning an api for showing in  reactjs
     return {
         'name': foodName,
         "calories": calories,
         "image": x,
-        "recipe": val,
+        "recipe":val,
     }
+
+
 
 
 @app.route('/data', methods=['GET', 'POST'])
@@ -93,61 +104,30 @@ def test():
     data = request.get_json()
     x = (data['fileName'])
     classData.a = x
-    # session['fileName']=x
     print(data, file=sys.stderr)
     print(x, file=sys.stderr)
     test1()
     return {
         "data": x
     }
-    # print(request.json['fileName'], file=sys.stderr)
-    # fileName= request.json['fileName']
-    # return {
-    #     "fileName": filename
-    # }
-    # return jsonify({"Result"
-    #                                +request.json['fileName']})
+   
 
+loginData = UserData()
 
-# def get_food():
-
-    # image_file = request.args.get('fileName')
-    # print(image_file)
-    # return {
-    #     'ok':'ok',
-    #     'image':image_file
-    # }
-
-    # image_file = request.args.get('fileName')
-    # print(request, file=sys.stderr)
-    # print(image_file, file=sys.stderr)
-    # return {
-    #     "image_file":image_file
-    # }
-
-    # img = 'C:\\Users\\shubh\\Desktop\\Gitam_notes_sem7\\CSD-Coding\\project\\frontend\\backend\\burger.jpg'
-
-    # api_user_token = 'c0360369626d67778d5783ed5f31ac068e3eafa9'
-    # headers = {'Authorization': 'Bearer ' + api_user_token}
-
-    # # Single/Several Dishes Detection
-    # url = 'https://api.logmeal.es/v2/image/segmentation/complete'
-    # resp = requests.post(url,files={'image': open(img, 'rb')},headers=headers)
-
-    # # Nutritional information
-    # url = 'https://api.logmeal.es/v2/recipe/nutritionalInfo'
-    # resp = requests.post(url,json={'imageId': resp.json()['imageId']}, headers=headers)
-
-    # result = resp.json();
-    # foodName="".join(result['foodName'][-1]).title()
-    # calories=(math.ceil(result['nutritional_info']['calories']))
-
-    # # Returning an api for showing in  reactjs
-    # return {
-    #     'Name':foodName,
-    #     "Calories": calories,
-    #     'fileName':image_file,
-    #     }
+@app.route('/login', methods=['POST'])
+def test2():
+    data=request.get_json()
+    print(data, file=sys.stderr)
+    loginData.userName = data['userName']
+    loginData.userEmail = data['userEmail']
+    if(loginData.userEmail=='undefined'):
+        return
+    loginData.userImage = data['userImage']
+    loginData.loginDate = data['date']
+    cursor = mysql.connection.cursor()
+    cursor.execute(''' INSERT INTO login_log VALUES(%s,%s, %s, %s)''',(loginData.userName,loginData.userEmail, loginData.userImage, loginData.loginDate))
+    mysql.connection.commit()
+    cursor.close()
 
 
 # Running app
